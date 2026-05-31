@@ -1,0 +1,4 @@
+flask
+tidalapi
+python-dotenv
+requests
