@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>colabList — Tidal Collaborative Playlist</title>
+    <!-- Google Fonts for premium typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Main Style sheet -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- QR Code Generator Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <!-- Premium background glowing gradients -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="main-header">
+            <div class="logo-area">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 2 12 12 22 22 12 12 2"></polygon>
+                    <polygon points="12 7 7 12 12 17 17 12 12 7"></polygon>
+                </svg>
+                <h1 class="logo-title">colabList</h1>
+            </div>
+            <div class="session-badge" id="session-badge">
+                <span class="badge-dot"></span>
+                <span class="badge-text" id="badge-text">Iniciando...</span>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <main class="main-content">
+            
+            <!-- STEP 1: AUTHENTICATION (HOST ONLY) -->
+            <section id="step-auth" class="step-card hidden">
+                <div class="auth-welcome">
+                    <h2 class="section-title">Playlists Colaborativas en Tiempo Real</h2>
+                    <p class="section-subtitle">Conecta tu cuenta de Tidal para crear una playlist donde tus amigos pueden agregar canciones al instante, sin necesidad de que ellos tengan cuenta de Tidal.</p>
+                </div>
+                
+                <div class="auth-action" id="auth-initial">
+                    <button class="btn btn-primary btn-large btn-glow" id="btn-start-auth">
+                        <span>Vincular con Tidal</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="btn-icon">
+                            <path d="M5 12h14M12 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="auth-pending hidden" id="auth-pending">
+                    <div class="auth-instructions">
+                        <p class="instruction-lead">Sigue estos pasos para autorizar la aplicación:</p>
+                        <ol class="instruction-list">
+                            <li>Escanea el código QR o haz clic en el enlace de abajo para abrir Tidal.</li>
+                            <li>Introduce este código de confirmación de 8 caracteres si se te solicita:</li>
+                        </ol>
+                    </div>
+
+                    <div class="code-display-card">
+                        <div class="user-code-label">Código de Confirmación</div>
+                        <div class="user-code" id="user-code">--------</div>
+                        <button class="btn btn-secondary btn-sm" id="btn-copy-code">Copiar Código</button>
+                    </div>
+
+                    <div class="qr-and-link">
+                        <div class="qr-container">
+                            <div id="tidal-qr" class="qr-code"></div>
+                            <span class="qr-caption">Escanea para ir a Tidal</span>
+                        </div>
+                        <div class="link-container">
+                            <a href="#" target="_blank" class="btn btn-secondary btn-large btn-block" id="tidal-link">
+                                Ir a la página de Tidal
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="auth-waiter">
+                        <div class="spinner"></div>
+                        <span>Esperando autorización de Tidal...</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- STEP 2: PLAYLIST SELECTOR (HOST ONLY) -->
+            <section id="step-playlist-selector" class="step-card hidden">
+                <div class="section-header-row">
+                    <div>
+                        <h2 class="section-title">Elige una Playlist</h2>
+                        <p class="section-subtitle">Selecciona una de tus playlists existentes o crea una nueva para empezar a colaborar.</p>
+                    </div>
+                    <button class="btn btn-secondary" id="btn-logout">Cerrar Sesión</button>
+                </div>
+
+                <div class="playlist-grid" id="playlist-grid">
+                    <!-- Playlists dynamically loaded here -->
+                </div>
+
+                <div class="divider"><span>O</span></div>
+
+                <div class="create-playlist-box">
+                    <h3 class="box-title">Crear Nueva Playlist Colaborativa</h3>
+                    <form id="form-create-playlist" class="inline-form">
+                        <div class="form-group">
+                            <input type="text" id="new-playlist-name" placeholder="Nombre de la Playlist" required class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <input type="text" id="new-playlist-desc" placeholder="Descripción (opcional)" class="form-input">
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btn-create-submit">Crear y Abrir</button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- STEP 3: COLLABORATIVE DASHBOARD -->
+            <section id="step-dashboard" class="dashboard-layout hidden">
+                
+                <!-- LEFT COLUMN: PLAYLIST VIEW & INVITE -->
+                <div class="dashboard-sidebar">
+                    <!-- Playlist glass card -->
+                    <div class="playlist-details-card">
+                        <div class="playlist-artwork-glow">
+                            <div class="disc-animation">
+                                <div class="disc-vinyl">
+                                    <div class="disc-center"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="playlist-text-details">
+                            <h2 class="active-playlist-title" id="active-playlist-name">Cargando...</h2>
+                            <p class="active-playlist-desc" id="active-playlist-desc">Preparando la colaboración...</p>
+                            <div class="active-playlist-meta">
+                                <span class="meta-item" id="playlist-track-count">0 canciones</span>
+                                <span class="meta-badge">Colaborativa</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invite card -->
+                    <div class="invite-card">
+                        <h3 class="invite-title">Invitar Colaboradores</h3>
+                        <p class="invite-subtitle">Cualquiera con este enlace o código QR puede buscar y agregar canciones a tu playlist directamente:</p>
+                        
+                        <div class="invite-link-row">
+                            <input type="text" id="share-link-input" readonly class="share-input">
+                            <button class="btn btn-primary btn-sm" id="btn-copy-share">Copiar</button>
+                        </div>
+
+                        <div class="invite-qr-container">
+                            <div id="share-qr" class="qr-code"></div>
+                            <span class="qr-caption">Escanea para unirte desde el móvil</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT COLUMN: TRACK LIST & SEARCH -->
+                <div class="dashboard-main">
+                    <!-- Tab selector -->
+                    <div class="tab-header">
+                        <button class="tab-btn active" id="tab-btn-tracks">Canciones de la Playlist</button>
+                        <button class="tab-btn" id="tab-btn-search">Buscar y Añadir</button>
+                    </div>
+
+                    <!-- TAB CONTENT: TRACK LIST -->
+                    <div class="tab-content" id="tab-tracks">
+                        <div class="playlist-tracks-container">
+                            <div class="tracks-list-header">
+                                <div class="track-col-index">#</div>
+                                <div class="track-col-info">Canción</div>
+                                <div class="track-col-album">Álbum</div>
+                                <div class="track-col-duration">Duración</div>
+                            </div>
+                            <div id="playlist-tracks-list" class="tracks-list scrollbar-custom">
+                                <!-- Tracks will be rendered here -->
+                                <div class="empty-state">
+                                    <p>Esta playlist no tiene canciones aún. ¡Usa el buscador para añadir música!</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB CONTENT: SEARCH -->
+                    <div class="tab-content hidden" id="tab-search">
+                        <div class="search-section">
+                            <div class="search-input-wrapper">
+                                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <input type="text" id="search-input" placeholder="Buscar canciones, artistas o álbumes..." class="search-input">
+                                <button class="btn btn-primary btn-search" id="btn-search-trigger">Buscar</button>
+                            </div>
+                            
+                            <div id="search-results-list" class="search-results scrollbar-custom">
+                                <div class="empty-state">
+                                    <p>Escribe el nombre de un tema o un artista arriba para empezar.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="/static/js/app.js?v=4"></script>
+</body>
+</html>
