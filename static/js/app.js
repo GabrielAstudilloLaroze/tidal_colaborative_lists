@@ -10,7 +10,8 @@ let state = {
     tracks: [],
     activeTab: 'tracks', // 'tracks', 'search'
     pollIntervalId: null,
-    statusIntervalId: null
+    statusIntervalId: null,
+    dragStartIndex: null
 };
 
 // DOM Elements
@@ -463,7 +464,8 @@ function renderPlaylistTracks() {
     
     state.tracks.forEach((t, index) => {
         const row = document.createElement('div');
-        row.className = 'track-row';
+        row.className = 'track-row draggable';
+        row.draggable = true;
         
         let artHTML = `
             <div class="track-artwork-fallback">
@@ -488,8 +490,60 @@ function renderPlaylistTracks() {
                 </div>
             </div>
             <div class="track-col-album" title="${escapeHTML(t.album)}">${escapeHTML(t.album)}</div>
-            <div class="track-col-duration">${formatDuration(t.duration)}</div>
+            <div class="track-col-duration" style="display: flex; justify-content: space-between; align-items: center; padding-right: 10px;">
+                <span>${formatDuration(t.duration)}</span>
+                <button class="btn-remove-track" data-index="${index}" title="Eliminar" style="background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+            </div>
         `;
+        
+        const removeBtn = row.querySelector('.btn-remove-track');
+        removeBtn.addEventListener('click', () => removeTrackFromPlaylist(index, t.name, removeBtn));
+        
+        // Add hover effect via JS since it's inline, or just rely on CSS
+        removeBtn.addEventListener('mouseenter', () => removeBtn.style.color = 'var(--danger)');
+        removeBtn.addEventListener('mouseleave', () => removeBtn.style.color = 'var(--text-muted)');
+        
+        // Drag and drop events
+        row.addEventListener('dragstart', (e) => {
+            state.dragStartIndex = index;
+            row.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', index);
+        });
+
+        row.addEventListener('dragend', () => {
+            row.classList.remove('dragging');
+            document.querySelectorAll('.track-row').forEach(r => r.classList.remove('drag-over'));
+            state.dragStartIndex = null;
+        });
+
+        row.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            e.dataTransfer.dropEffect = 'move';
+            if (state.dragStartIndex !== null && state.dragStartIndex !== index) {
+                row.classList.add('drag-over');
+            }
+        });
+
+        row.addEventListener('dragleave', () => {
+            row.classList.remove('drag-over');
+        });
+
+        row.addEventListener('drop', (e) => {
+            e.preventDefault();
+            row.classList.remove('drag-over');
+            const fromIndex = state.dragStartIndex;
+            const toIndex = index;
+            if (fromIndex !== null && fromIndex !== toIndex) {
+                moveTrackInPlaylist(fromIndex, toIndex);
+            }
+        });
+
         els.playlistTracksList.appendChild(row);
     });
 }
@@ -610,6 +664,65 @@ async function addTrackToPlaylist(trackId, trackName, buttonEl) {
         showToast('Error al añadir la canción', 'error');
         buttonEl.disabled = false;
         buttonEl.innerHTML = '<span>Añadir</span>';
+    }
+}
+
+async function removeTrackFromPlaylist(index, trackName, buttonEl) {
+    if (buttonEl.disabled) return;
+    
+    if (!confirm(`¿Seguro que deseas eliminar "${trackName}" de la playlist?`)) return;
+    
+    buttonEl.disabled = true;
+    const originalContent = buttonEl.innerHTML;
+    buttonEl.innerHTML = '<div class="spinner" style="width:12px; height:12px; border-width: 1px;"></div>';
+    
+    try {
+        const response = await fetch(`/api/playlists/${state.activePlaylistId}/remove/${index}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            buttonEl.disabled = false;
+            buttonEl.innerHTML = originalContent;
+            return;
+        }
+        
+        showToast(`Eliminado: "${trackName}"`);
+        loadPlaylistTracks(true); 
+    } catch (err) {
+        showToast('Error al eliminar la canción', 'error');
+        buttonEl.disabled = false;
+        buttonEl.innerHTML = originalContent;
+    }
+}
+
+async function moveTrackInPlaylist(fromIndex, toIndex) {
+    try {
+        // Optimistic UI update
+        const track = state.tracks.splice(fromIndex, 1)[0];
+        state.tracks.splice(toIndex, 0, track);
+        renderPlaylistTracks();
+
+        const response = await fetch(`/api/playlists/${state.activePlaylistId}/move`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ from_index: fromIndex, to_index: toIndex })
+        });
+        const result = await response.json();
+        
+        if (result.error) {
+            showToast(result.error, 'error');
+            loadPlaylistTracks(true); // revert
+            return;
+        }
+        
+        showToast('Orden actualizado');
+        loadPlaylistTracks(true);
+    } catch (err) {
+        showToast('Error al mover la canción', 'error');
+        loadPlaylistTracks(true); // revert
     }
 }
 
