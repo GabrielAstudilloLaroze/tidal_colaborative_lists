@@ -840,6 +840,24 @@ h1, h2, h3, h4 {
     background-color: rgba(255, 255, 255, 0.03);
 }
 
+.track-row.draggable {
+    cursor: grab;
+}
+
+.track-row.draggable:active {
+    cursor: grabbing;
+}
+
+.track-row.dragging {
+    opacity: 0.5;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.track-row.drag-over {
+    border-top: 2px solid var(--accent);
+}
+
+
 .track-col-index {
     font-size: 0.85rem;
     color: var(--text-muted);
