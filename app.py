@@ -286,6 +286,39 @@ def add_to_playlist(playlist_id):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/playlists/<playlist_id>/remove/<int:index>', methods=['DELETE'])
+def remove_from_playlist(playlist_id, index):
+    try:
+        if not session.check_login():
+            return jsonify({"error": "Unauthenticated"}), 401
+            
+        playlist = session.playlist(playlist_id)
+        playlist.remove_by_index(index)
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/playlists/<playlist_id>/move', methods=['PUT'])
+def move_playlist_track(playlist_id):
+    try:
+        if not session.check_login():
+            return jsonify({"error": "Unauthenticated"}), 401
+            
+        data = request.json or {}
+        from_index = data.get('from_index')
+        to_index = data.get('to_index')
+        
+        if from_index is None or to_index is None:
+            return jsonify({"error": "Missing from_index or to_index"}), 400
+            
+        playlist = session.playlist(playlist_id)
+        playlist.move_by_index(int(from_index), int(to_index))
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/search', methods=['GET'])
 def search_tracks():
     try:
